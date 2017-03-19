@@ -145,7 +145,7 @@ void updateMeasure(m_tree_t *node) {
 }
 
 void reconstruct(m_tree_t *node) {
-	int nodeVal;
+	int val;
 	//min
 	if (node->left != NULL) node->min = node->left->min;
 	else node->min = node->key;
@@ -153,23 +153,25 @@ void reconstruct(m_tree_t *node) {
 	if (node->right != NULL) node->max = node->right->max;
 	else node->max = node->key;
 	//leftmin
-	if (node->side == 0) nodeVal = node->key;
-	else nodeVal = node->other;
+	if (node->side == 0) val = node->key;
+	else val = node->other;
 	if (node->left != NULL && node->right != NULL){
-		node->leftmin = min(nodeVal, min(node->left->leftmin, node->right->leftmin));
+		node->leftmin = min(val, min(node->left->leftmin, node->right->leftmin));
 	} else {
-		if (node->left != NULL) node->leftmin = min(nodeVal, node->left->leftmin);
-		else if (node->right != NULL) node->leftmin = min(nodeVal, node->right->leftmin);
+		if (node->left != NULL) node->leftmin = min(val, node->left->leftmin);
+		else if (node->right != NULL) node->leftmin = min(val, node->right->leftmin);
+		else node->leftmin = val;
 	}
 	//rightmax
-	if (node->side == 1) nodeVal = node->key;
-	else nodeVal = node->other;
+	if (node->side == 1) val = node->key;
+	else val = node->other;
 
 	if (node->left != NULL && node->right != NULL){
-		node->rightmax = getMax(nodeVal, node->left->rightmax, node->right->rightmax);
+		node->rightmax = getMax(val, node->left->rightmax, node->right->rightmax);
 	} else {
-		if (node->left != NULL) node->rightmax = max(nodeVal, node->left->rightmax);
-		else if (node->right != NULL) node->rightmax = max(nodeVal, node->right->rightmax);
+		if (node->left != NULL) node->rightmax = max(val, node->left->rightmax);
+		else if (node->right != NULL) node->rightmax = max(val, node->right->rightmax);
+		else node->rightmax = val;
 	}
 	// measure
 	updateMeasure(node);
