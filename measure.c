@@ -6,6 +6,7 @@
 typedef struct m_tree_t {
 	struct m_tree_t	*left;
 	struct m_tree_t	*right;
+	int head;
 	int	height;
 	int key;
 	int side;
@@ -17,9 +18,12 @@ typedef struct m_tree_t {
 	int measure;
 } m_tree_t;
 
+m_tree_t * head = NULL;
+
 m_tree_t * get_node(){
 	m_tree_t *node;
 	node = (m_tree_t *) malloc(sizeof(m_tree_t));
+	node->head = 0;
 	node->left = NULL;
 	node->right = NULL;
 	node->key = 0;
@@ -63,6 +67,14 @@ m_tree_t * leftRotate(m_tree_t *node) {
     newNode->height = max(height(newNode->left), height(newNode->right))+1;
 
     return newNode;
+}
+
+void updateHeight(m_tree_t *node){
+	int l = 0, r = 0;
+	if (node->left != NULL) l = node->left->height + 1;
+	if (node->right != NULL) r = node->right->height + 1;
+	if (l > r) node->height = l;
+	else node->height = r;
 }
 
 void updateMeasure(m_tree_t *node) {
@@ -144,7 +156,7 @@ void updateMeasure(m_tree_t *node) {
 	}
 }
 
-void reconstruct(m_tree_t *node) {
+void restructure(m_tree_t *node) {
 	int val;
 	//min
 	if (node->left != NULL) node->min = node->left->min;
@@ -167,7 +179,7 @@ void reconstruct(m_tree_t *node) {
 	else val = node->other;
 
 	if (node->left != NULL && node->right != NULL){
-		node->rightmax = getMax(val, node->left->rightmax, node->right->rightmax);
+		node->rightmax = max(val, max(node->left->rightmax, node->right->rightmax));
 	} else {
 		if (node->left != NULL) node->rightmax = max(val, node->left->rightmax);
 		else if (node->right != NULL) node->rightmax = max(val, node->right->rightmax);
@@ -204,8 +216,39 @@ m_tree_t * rebalance(m_tree_t *node) {
 	return node;
 }
 
-m_tree_t * insert(m_tree_t *tree, int a, int b) {
+m_tree_t * insert(m_tree_t *node, int a, int b) {
+	if (node == NULL) {
+		node = get_node();
+		node->key = a;
+		node->other = b;
+		if (a < b) node->side = 0;
+		else node->side = 1;
+	}
+	else if (node->head == 1){
+		if (node->left == NULL) {
+			node->left = get_node();
+			node->left->key = a;
+			node->left->other = b;
+			if (a < b) node->left->side = 0;
+			else node->left->side = 1;
+		} else {
+			m_tree_t *updatedNode = insert(node->left, a, b);
+			node->left = updatedNode;
+		}
+	}
+	else if (node->key > a){
+		m_tree_t *updatedNode = insert(node->left, a, b);
+		node->left = updatedNode;
+	}
+	else if (node->key < a){
+		m_tree_t *updatedNode = insert(node->right, a, b);
+		node->right = updatedNode;
+	}
+	updateHeight(node);
+	restructure(node);
 
+	if (node == head) return node;
+	else return rebalance(node);
 }
 
 m_tree_t * delete(m_tree_t *tree, int a, int b){
@@ -215,11 +258,15 @@ m_tree_t * delete(m_tree_t *tree, int a, int b){
 m_tree_t * create_m_tree(){
 	m_tree_t *tree;
 	tree = (m_tree_t *) malloc(sizeof(m_tree_t));
+	tree->head = 1;
 	return tree;
 }
 
 void insert_interval(m_tree_t * tree, int a, int b) {
-
+	if (tree != NULL) {
+		insert(tree, a, b);
+		insert(tree, b, a);
+	}
 }
 
 
@@ -229,7 +276,10 @@ void delete_interval(m_tree_t * tree, int a, int b) {
 
 
 int query_length(m_tree_t * tree) {
-
+	if(tree != NULL){
+		if(tree->head == 1 && tree->left != NULL) return tree->left->measure;
+		else return tree->measure;
+	} else return 0;
 }
 
 
