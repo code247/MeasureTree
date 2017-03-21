@@ -70,7 +70,13 @@ void addInterval(intervals *intv, int l, int r){
 	}
 }
 
-void deleteInterval(intervals *intv, int l, int r){
+int deleteInterval(m_tree_t *tmp_node, int l, int r){
+	if (l > r){
+		int t = l;
+		l = r;
+		r = t;
+	}
+	intervals *intv = (intervals *) tmp_node->left;
 	if(intv != NULL){
 		intervals *tmp = intv;
 		intervals *prev = NULL;
@@ -78,10 +84,12 @@ void deleteInterval(intervals *intv, int l, int r){
 			if(tmp->left == l && tmp->right == r){
 				if(prev == NULL){
 					intv = intv->next;
-					free(tmp);
+					//free(tmp);
+					break;
 				} else {
 					prev->next = tmp->next;
-					free(tmp);
+					//free(tmp);
+					break;
 				}
 			} else {
 				prev = tmp;
@@ -89,6 +97,26 @@ void deleteInterval(intervals *intv, int l, int r){
 			}
 		}
 	}
+	if (intv == NULL) {
+		return -1;
+	} else {
+		tmp_node->left = (intervals *) intv;
+		return 0;
+	}
+}
+
+void updatedIntervals(m_tree_t *tmp) {
+	intervals *intv = (intervals *) tmp->left;
+	int min = intv->left;
+	int max = intv->right;
+	intv = intv->next;
+	while(intv != NULL){
+		if (min < intv->left) min = intv->left;
+		if (max > intv->right) max = intv->right;
+		intv = intv->next;
+	}
+	tmp->leftmin = min;
+	tmp->rightmax = max;
 }
 
 void leafMeasure(m_tree_t *leaf) {
@@ -290,83 +318,108 @@ void insert_node(m_tree_t *tree, int endpoint, int other){
 	}
 }
 
-void delete_node(m_tree_t *tree, int index){
+void delete_node(m_tree_t *tree, int endpoint, int other){
 	m_tree_t *tmp_node, *upper_node, *other_node;
-	char  *deleted_object; int finished;
-	if( tree->left == NULL );
-	else if( tree->right == NULL ){
-		deleted_object = (char  *) tree->left;
-		tree->left = NULL;
-
-	} else {
-		m_tree_t * path_stack[100]; int stack_p = 0;
-		tmp_node = tree;
-		while( tmp_node->right != NULL ) {
-			path_stack[stack_p++] = tmp_node;
-			upper_node = tmp_node;
-			if(index <= tmp_node->left->key){
-				tmp_node->key -= 1;
-				tmp_node   = upper_node->left;
-				other_node = upper_node->right;
-			} else {
-				index -= tmp_node->left->key;
-				tmp_node->key -= 1;
-				tmp_node   = upper_node->right;
-				other_node = upper_node->left;
-			}
+	int finished;
+	if(tree->right == NULL){
+		if(tree->key == endpoint) {
+			free(tree->left);
+			tree->left = NULL;
+			tree->right  = NULL;
+			tree->key  = 0;
+			tree->height = 0;
+			tree->leftmin = 0;
+			tree->rightmax = 0;
+			tree->min = -INFINITY;
+			tree->max = INFINITY;
+			tree->measure = 0;
 		}
+		return;
+	}
+	m_tree_t * path_stack[100]; int stack_p = 0;
+	tmp_node = tree;
+	while( tmp_node->right != NULL ) {
+		path_stack[stack_p++] = tmp_node;
+		upper_node = tmp_node;
+		if(endpoint < tmp_node->key){
+			tmp_node   = upper_node->left;
+			other_node = upper_node->right;
+		} else {
+			tmp_node   = upper_node->right;
+			other_node = upper_node->left;
+		}
+	}
+	if(tmp_node->key != endpoint) return;
+	int flag = deleteInterval(tmp_node, endpoint, other);
+	if(flag == -1) {
 		upper_node->key   = other_node->key;
 		upper_node->left  = other_node->left;
 		upper_node->right = other_node->right;
 		upper_node->height = other_node->height;
-		deleted_object = (char *) tmp_node->left;
-
+		upper_node->measure = other_node->measure;
+		upper_node->leftmin = other_node->leftmin;
+		upper_node->rightmax = other_node->rightmax;
+		if(upper_node->right != NULL){
+			upper_node->right->max = upper_node->max;
+			upper_node->left->min = upper_node->min;
+		}
 		free(tmp_node);
 		other_node->left = NULL;
 		other_node->right = NULL;
 		free(other_node);
-
-		/*start rebalance*/
-		finished = 0; stack_p -= 1;
-		while( stack_p > 0 && !finished ){
-			int tmp_height, old_height;
-			tmp_node = path_stack[--stack_p];
-			old_height= tmp_node->height;
-			if( tmp_node->left->height - tmp_node->right->height == 2 ) {
-				if( tmp_node->left->left->height - tmp_node->right->height == 1 ) {
-					right_rotation( tmp_node );
-					tmp_node->right->height = tmp_node->right->left->height + 1;
-					tmp_node->height = tmp_node->right->height + 1;
-				} else {
-					left_rotation( tmp_node->left );
-					right_rotation( tmp_node );
-					tmp_height = tmp_node->left->left->height;
-					tmp_node->left->height  = tmp_height + 1;
-					tmp_node->right->height = tmp_height + 1;
-					tmp_node->height = tmp_height + 2;
-				}
-			} else if ( tmp_node->left->height - tmp_node->right->height == -2 ) {
-				if( tmp_node->right->right->height - tmp_node->left->height == 1 ) {
-					left_rotation( tmp_node );
-					tmp_node->left->height = tmp_node->left->right->height + 1;
-					tmp_node->height = tmp_node->left->height + 1;
-				} else {
-					right_rotation( tmp_node->right );
-					left_rotation( tmp_node );
-					tmp_height = tmp_node->right->right->height;
-					tmp_node->left->height  = tmp_height + 1;
-					tmp_node->right->height = tmp_height + 1;
-					tmp_node->height = tmp_height + 2;
-				}
-			} else {/* update height even if there was no rotation */
-				if( tmp_node->left->height > tmp_node->right->height )
-					tmp_node->height = tmp_node->left->height + 1;
-				else
-					tmp_node->height = tmp_node->right->height + 1;
-			}
-			if( tmp_node->height == old_height )
-				finished = 1;
+	} else {
+		updatedIntervals(tmp_node);
+		leafMeasure(tmp_node);
+	}
+	int stack_tmp = stack_p;
+	while(stack_tmp > 0) {
+		tmp_node = path_stack[--stack_tmp];
+		if (tmp_node->right != NULL) {
+			internalMeasure(tmp_node);
+			tmp_node->leftmin = min(tmp_node->left->leftmin,tmp_node->right->leftmin);
+			tmp_node->rightmax = max(tmp_node->left->rightmax,tmp_node->right->rightmax);
 		}
+	}
+	/*start rebalance*/
+	finished = 0; stack_p -= 1;
+	while( stack_p > 0 && !finished ){
+		int tmp_height, old_height;
+		tmp_node = path_stack[--stack_p];
+		old_height= tmp_node->height;
+		if( tmp_node->left->height - tmp_node->right->height == 2 ) {
+			if( tmp_node->left->left->height - tmp_node->right->height == 1 ) {
+				right_rotation( tmp_node );
+				tmp_node->right->height = tmp_node->right->left->height + 1;
+				tmp_node->height = tmp_node->right->height + 1;
+			} else {
+				left_rotation( tmp_node->left );
+				right_rotation( tmp_node );
+				tmp_height = tmp_node->left->left->height;
+				tmp_node->left->height  = tmp_height + 1;
+				tmp_node->right->height = tmp_height + 1;
+				tmp_node->height = tmp_height + 2;
+			}
+		} else if ( tmp_node->left->height - tmp_node->right->height == -2 ) {
+			if( tmp_node->right->right->height - tmp_node->left->height == 1 ) {
+				left_rotation( tmp_node );
+				tmp_node->left->height = tmp_node->left->right->height + 1;
+				tmp_node->height = tmp_node->left->height + 1;
+			} else {
+				right_rotation( tmp_node->right );
+				left_rotation( tmp_node );
+				tmp_height = tmp_node->right->right->height;
+				tmp_node->left->height  = tmp_height + 1;
+				tmp_node->right->height = tmp_height + 1;
+				tmp_node->height = tmp_height + 2;
+			}
+		} else {/* update height even if there was no rotation */
+			if( tmp_node->left->height > tmp_node->right->height )
+				tmp_node->height = tmp_node->left->height + 1;
+			else
+				tmp_node->height = tmp_node->right->height + 1;
+		}
+		if( tmp_node->height == old_height )
+			finished = 1;
 	}
 }
 
@@ -378,7 +431,10 @@ void insert_interval(m_tree_t *tree, int a, int b){
 }
 
 void delete_interval(m_tree_t *tree, int a, int b){
-
+	if(tree->left != NULL && a < b) {
+		delete_node(tree, a, b);
+		delete_node(tree, b, a);
+	}
 }
 
 int query_length(m_tree_t *tree){
@@ -388,35 +444,76 @@ int query_length(m_tree_t *tree){
 
 int main() {
 	m_tree_t *tree_ = create_m_tree();
-	insert_interval(tree_, 1, 0);
+	//	insert_interval(tree_, 1, 0);
+	//	//ASSERT_EQ(query_length(tree_), 0);
+	//
+	//	insert_interval(tree_, 1, 2);
+	//	//ASSERT_EQ(query_length(tree_), 1);
+	//
+	//	insert_interval(tree_, 2, 4);
+	//	//ASSERT_EQ(query_length(tree_), 3);
+	//
+	//	insert_interval(tree_, 6, 10);
+	//	//ASSERT_EQ(query_length(tree_), 7);
+	//
+	//	insert_interval(tree_, 7, 8);
+	//	//ASSERT_EQ(query_length(tree_), 7);
+	//
+	//	insert_interval(tree_, 7, 11);
+	//	//ASSERT_EQ(query_length(tree_), 8);
+	//
+	//	insert_interval(tree_, -1, 1);
+	//	//ASSERT_EQ(query_length(tree_), 10);
+	//
+	//	insert_interval(tree_, -5, -3);
+	//	//ASSERT_EQ(query_length(tree_), 12);
+	//
+	//	insert_interval(tree_, -6, -4);
+	//	//ASSERT_EQ(query_length(tree_), 13);
+	//
+	//	insert_interval(tree_, -7, 11);
+	//	//ASSERT_EQ(query_length(tree_), 18);
+
+	delete_interval(tree_, 1, 2);
 	//ASSERT_EQ(query_length(tree_), 0);
 
 	insert_interval(tree_, 1, 2);
+	delete_interval(tree_, 1, 3);
 	//ASSERT_EQ(query_length(tree_), 1);
+	delete_interval(tree_, 1, 2);
+	//ASSERT_EQ(query_length(tree_), 0);
 
+	insert_interval(tree_, 1, 2);
 	insert_interval(tree_, 2, 4);
+	delete_interval(tree_, 1, 2);
+	//ASSERT_EQ(query_length(tree_), 2);
+
+	insert_interval(tree_, 5, 9);
+	delete_interval(tree_, 2, 4);
+	//ASSERT_EQ(query_length(tree_), 4);
+
+	insert_interval(tree_, 6, 8);
+	delete_interval(tree_, 5, 9);
+	//ASSERT_EQ(query_length(tree_), 2);
+
+	insert_interval(tree_, 7, 10);
+	delete_interval(tree_, 6, 8);
 	//ASSERT_EQ(query_length(tree_), 3);
 
-	insert_interval(tree_, 6, 10);
-	//ASSERT_EQ(query_length(tree_), 7);
+	insert_interval(tree_, 6, 8);
+	delete_interval(tree_, 7, 10);
+	//ASSERT_EQ(query_length(tree_), 2);
 
-	insert_interval(tree_, 7, 8);
-	//ASSERT_EQ(query_length(tree_), 7);
-
-	insert_interval(tree_, 7, 11);
+	insert_interval(tree_, 2, 10);
+	delete_interval(tree_, 6, 8);
 	//ASSERT_EQ(query_length(tree_), 8);
 
-	insert_interval(tree_, -1, 1);
-	//ASSERT_EQ(query_length(tree_), 10);
+	insert_interval(tree_, -1, 2);
+	delete_interval(tree_, 2, 10);
+	//ASSERT_EQ(query_length(tree_), 3);
 
-	insert_interval(tree_, -5, -3);
-	//ASSERT_EQ(query_length(tree_), 12);
-
-	insert_interval(tree_, -6, -4);
-	//ASSERT_EQ(query_length(tree_), 13);
-
-	insert_interval(tree_, -7, 11);
-	//ASSERT_EQ(query_length(tree_), 18);
+	delete_interval(tree_, -1, 2);
+	//ASSERT_EQ(query_length(tree_), 0);
 	int x = query_length(tree_);
 	int y = 0;
 }
