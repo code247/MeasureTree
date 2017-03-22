@@ -41,8 +41,8 @@ m_tree_t *get_node() {
 	tmp_node->key = 0;
 	tmp_node->max = INFINITY;
 	tmp_node->min = -INFINITY;
-	tmp_node->leftmin = INFINITY;
-	tmp_node->rightmax = -INFINITY;
+	tmp_node->leftmin = 0;
+	tmp_node->rightmax = 0;
 	tmp_node->measure = 0;
 	tmp_node->intv = NULL;
 	return( tmp_node );
@@ -100,7 +100,7 @@ int deleteInterval(m_tree_t *tmp_node, int l, int r){
 	if (intv == NULL) {
 		return -1;
 	} else {
-		tmp_node->left = (intervals *) intv;
+		tmp_node->left = (m_tree_t *) intv;
 		return 0;
 	}
 }
@@ -367,6 +367,18 @@ void delete_node(m_tree_t *tree, int endpoint, int other){
 		other_node->left = NULL;
 		other_node->right = NULL;
 		free(other_node);
+		if(tree->key == endpoint){
+			m_tree_t *tmp = tree->right;
+			while(tmp->right != NULL)
+				tmp = tmp->left;
+			tree->key = tmp->key;
+			tree->left->max = tree->key;
+			tree->right->min = tree->key;
+			if(tree->left->right == NULL) leafMeasure(tree->left);
+			else internalMeasure(tree->left);
+			if(tree->right->right == NULL) leafMeasure(tree->right);
+			else internalMeasure(tree->right);
+		}
 	} else {
 		updatedIntervals(tmp_node);
 		leafMeasure(tmp_node);
@@ -378,6 +390,8 @@ void delete_node(m_tree_t *tree, int endpoint, int other){
 			internalMeasure(tmp_node);
 			tmp_node->leftmin = min(tmp_node->left->leftmin,tmp_node->right->leftmin);
 			tmp_node->rightmax = max(tmp_node->left->rightmax,tmp_node->right->rightmax);
+		} else {
+			leafMeasure(tmp_node);
 		}
 	}
 	/*start rebalance*/
@@ -442,78 +456,10 @@ int query_length(m_tree_t *tree){
 	else return -1;
 }
 
-int main() {
-	m_tree_t *tree_ = create_m_tree();
-	//	insert_interval(tree_, 1, 0);
-	//	//ASSERT_EQ(query_length(tree_), 0);
-	//
-	//	insert_interval(tree_, 1, 2);
-	//	//ASSERT_EQ(query_length(tree_), 1);
-	//
-	//	insert_interval(tree_, 2, 4);
-	//	//ASSERT_EQ(query_length(tree_), 3);
-	//
-	//	insert_interval(tree_, 6, 10);
-	//	//ASSERT_EQ(query_length(tree_), 7);
-	//
-	//	insert_interval(tree_, 7, 8);
-	//	//ASSERT_EQ(query_length(tree_), 7);
-	//
-	//	insert_interval(tree_, 7, 11);
-	//	//ASSERT_EQ(query_length(tree_), 8);
-	//
-	//	insert_interval(tree_, -1, 1);
-	//	//ASSERT_EQ(query_length(tree_), 10);
-	//
-	//	insert_interval(tree_, -5, -3);
-	//	//ASSERT_EQ(query_length(tree_), 12);
-	//
-	//	insert_interval(tree_, -6, -4);
-	//	//ASSERT_EQ(query_length(tree_), 13);
-	//
-	//	insert_interval(tree_, -7, 11);
-	//	//ASSERT_EQ(query_length(tree_), 18);
+void destroy_m_tree(m_tree_t *tree) {
+	free(tree);
+}
 
-	delete_interval(tree_, 1, 2);
-	//ASSERT_EQ(query_length(tree_), 0);
-
-	insert_interval(tree_, 1, 2);
-	delete_interval(tree_, 1, 3);
-	//ASSERT_EQ(query_length(tree_), 1);
-	delete_interval(tree_, 1, 2);
-	//ASSERT_EQ(query_length(tree_), 0);
-
-	insert_interval(tree_, 1, 2);
-	insert_interval(tree_, 2, 4);
-	delete_interval(tree_, 1, 2);
-	//ASSERT_EQ(query_length(tree_), 2);
-
-	insert_interval(tree_, 5, 9);
-	delete_interval(tree_, 2, 4);
-	//ASSERT_EQ(query_length(tree_), 4);
-
-	insert_interval(tree_, 6, 8);
-	delete_interval(tree_, 5, 9);
-	//ASSERT_EQ(query_length(tree_), 2);
-
-	insert_interval(tree_, 7, 10);
-	delete_interval(tree_, 6, 8);
-	//ASSERT_EQ(query_length(tree_), 3);
-
-	insert_interval(tree_, 6, 8);
-	delete_interval(tree_, 7, 10);
-	//ASSERT_EQ(query_length(tree_), 2);
-
-	insert_interval(tree_, 2, 10);
-	delete_interval(tree_, 6, 8);
-	//ASSERT_EQ(query_length(tree_), 8);
-
-	insert_interval(tree_, -1, 2);
-	delete_interval(tree_, 2, 10);
-	//ASSERT_EQ(query_length(tree_), 3);
-
-	delete_interval(tree_, -1, 2);
-	//ASSERT_EQ(query_length(tree_), 0);
-	int x = query_length(tree_);
-	int y = 0;
+int main(){
+	return 0;
 }
