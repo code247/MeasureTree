@@ -12,7 +12,6 @@ typedef struct intervals {
 typedef struct m_tree_t {
 	struct m_tree_t	*left;
 	struct m_tree_t	*right;
-	struct intervals *intv;
 	int key;
 	int min;
 	int max;
@@ -44,7 +43,6 @@ m_tree_t *get_node() {
 	tmp_node->leftmin = 0;
 	tmp_node->rightmax = 0;
 	tmp_node->measure = 0;
-	tmp_node->intv = NULL;
 	return( tmp_node );
 }
 
@@ -88,7 +86,7 @@ int deleteInterval(m_tree_t *tmp_node, int l, int r){
 					break;
 				} else {
 					prev->next = tmp->next;
-					//free(tmp);
+					free(tmp);
 					break;
 				}
 			} else {
@@ -188,11 +186,11 @@ void insert_node(m_tree_t *tree, int endpoint, int other){
 		tree->measure = 0;
 		tree->leftmin = endpoint;
 		tree->rightmax = other;
-		tree->intv = (intervals *) malloc(sizeof(intervals));
-		tree->intv->left = endpoint;
-		tree->intv->right = other;
-		tree->intv->next = NULL;
-		tree->left = (m_tree_t *) tree->intv;
+		intervals *intv = (intervals *) malloc(sizeof(intervals));
+		intv->left = endpoint;
+		intv->right = other;
+		intv->next = NULL;
+		tree->left = (m_tree_t *) intv;
 		leafMeasure(tree);
 	} else {
 		m_tree_t * path_stack[100]; int stack_p = 0;
@@ -206,12 +204,13 @@ void insert_node(m_tree_t *tree, int endpoint, int other){
 			}
 		}
 		if(tmp_node->key == endpoint) {
+			intervals *intv = (intervals *) tmp_node->left;
 			if(endpoint < other) {
-				addInterval(tmp_node->intv, endpoint, other);
+				addInterval(intv, endpoint, other);
 				tmp_node->leftmin = min(tmp_node->leftmin, endpoint);
 				tmp_node->rightmax = max(tmp_node->rightmax, other);
 			} else {
-				addInterval(tmp_node->intv, other, endpoint);
+				addInterval(intv, other, endpoint);
 				tmp_node->leftmin = min(tmp_node->leftmin, other);
 				tmp_node->rightmax = max(tmp_node->rightmax, endpoint);
 			}
@@ -225,27 +224,25 @@ void insert_node(m_tree_t *tree, int endpoint, int other){
 			old_leaf->height = 0;
 			old_leaf->leftmin = tmp_node->leftmin;
 			old_leaf->rightmax = tmp_node->rightmax;
-			old_leaf->intv = tmp_node->intv;
 
 			new_leaf = get_node();
-
 			new_leaf->key = endpoint;
 			new_leaf->height = 0;
-			new_leaf->intv = (intervals *) malloc(sizeof(intervals));
+			intervals *intv = (intervals *) malloc(sizeof(intervals));
 			if(endpoint < other) {
-				new_leaf->intv->left = endpoint;
-				new_leaf->intv->right = other;
-				new_leaf->intv->next = NULL;
+				intv->left = endpoint;
+				intv->right = other;
+				intv->next = NULL;
 				new_leaf->leftmin = endpoint;
 				new_leaf->rightmax = other;
 			} else {
-				new_leaf->intv->left = other;
-				new_leaf->intv->right = endpoint;
-				new_leaf->intv->next = NULL;
+				intv->left = other;
+				intv->right = endpoint;
+				intv->next = NULL;
 				new_leaf->leftmin = other;
 				new_leaf->rightmax = endpoint;
 			}
-			new_leaf->left = (m_tree_t *) new_leaf->intv;
+			new_leaf->left = (m_tree_t *) intv;
 			if(tmp_node->key < endpoint) {
 				tmp_node->left = old_leaf;
 				tmp_node->right = new_leaf;
@@ -363,9 +360,11 @@ void delete_node(m_tree_t *tree, int endpoint, int other){
 			upper_node->right->max = upper_node->max;
 			upper_node->left->min = upper_node->min;
 		}
+		free(tmp_node->left);
 		free(tmp_node);
 		other_node->left = NULL;
 		other_node->right = NULL;
+		free(other_node->left);
 		free(other_node);
 		if(tree->key == endpoint){
 			m_tree_t *tmp = tree->right;
@@ -458,8 +457,4 @@ int query_length(m_tree_t *tree){
 
 void destroy_m_tree(m_tree_t *tree) {
 	free(tree);
-}
-
-int main(){
-	return 0;
 }
